@@ -29,6 +29,22 @@ on_sataraid () {
 	return 1
 }
 
+: >"$OS_PROBER_TMP/dmverity-map"
+if type veritysetup >/dev/null 2>&1; then
+	for dev in /dev/dm-[0-9]; do
+		[ -e "$dev" ] || continue
+		veritysetup status "$dev" | sed -n "/[[:space:]]*\(data\|hash\) device:/s,[[:space:]]*\(.*\) device:[[:space:]]\(.*\)$,\2 \1,p"
+	done >"$OS_PROBER_TMP/dmverity-map"
+fi
+
+on_dmverity () {
+	local device="/dev/${1##*/}"
+	if grep -q "^$device " "$OS_PROBER_TMP/dmverity-map"; then
+		return 0
+	fi
+	return 1
+}
+
 partitions () {
 	os_name="$(uname -s)"
 	# Exclude partitions that have whole_disk sysfs attribute set.
@@ -37,7 +53,8 @@ partitions () {
 		# Serial ATA RAID disk.
 		for part in /sys/block/*/*[0-9]; do
 			if [ -f "$part/start" ] && \
-			   [ ! -f "$part/whole_disk" ] && ! on_sataraid $part; then
+			   [ ! -f "$part/whole_disk" ] && \
+			   ! on_sataraid $part && ! on_dmverity $part; then
 				name="$(echo "${part##*/}" | sed 's,[!.],/,g')"
 				if [ -e "/dev/$name" ]; then
 					echo "/dev/$name"
