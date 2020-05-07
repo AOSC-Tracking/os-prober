@@ -14,6 +14,14 @@ log_output () {
 	fi
 }
 
+on_removable() {
+	local parent="${1%/*}"
+	if grep -q 1 "$parent/removable"; then
+		return 0
+	fi
+	return 1
+}
+
 : >"$OS_PROBER_TMP/dmraid-map"
 DMRAID=$(type dmraid >/dev/null 2>&1 || true)
 if [ "$DMRAID" ]; then
@@ -54,6 +62,7 @@ partitions () {
 		for part in /sys/block/*/*[0-9]; do
 			if [ -f "$part/start" ] && \
 			   [ ! -f "$part/whole_disk" ] && \
+			   ! on_removable $part && \
 			   ! on_sataraid $part && ! on_dmverity $part; then
 				name="$(echo "${part##*/}" | sed 's,[!.],/,g')"
 				if [ -e "/dev/$name" ]; then
