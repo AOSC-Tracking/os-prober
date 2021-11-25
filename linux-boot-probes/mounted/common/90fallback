@@ -19,6 +19,12 @@ for kernpat in /vmlinuz /vmlinux /boot/vmlinuz /boot/vmlinux "/boot/vmlinuz*" \
 	else
 		kernbootpart="$partition"
 	fi
+
+	kernelparams="root=$mappedpartition"
+	if blkid "$partition" | grep 'TYPE="ext4"' >/dev/null; then
+		kernelparams="$kernelparams rootfstype=ext4"
+	fi
+
 	for kernfile in $(eval ls "$mpoint$kernpat" 2>/dev/null); do
 		kernbasefile=$(echo "$kernfile" | sed "s!^$mpoint!!")
 		if [ -f "$kernfile" ] && [ ! -L "$kernfile" ]; then
@@ -40,13 +46,13 @@ for kernpat in /vmlinuz /vmlinux /boot/vmlinuz /boot/vmlinux "/boot/vmlinuz*" \
 			for initrd in $(eval ls "$initrdname" "$initrdname1" "$initrdname2" "$initrdname3" "$initrdname4" "$initrdname5" 2>/dev/null); do
 				if [ "$initrd" != "$kernfile" ] && [ -f "$initrd" ] && [ ! -L "$initrd" ]; then
 					initrd=$(echo "$initrd" | sed "s!^$mpoint!!")
-					result "$partition:$kernbootpart::$kernbasefile:$initrd:root=$mappedpartition"
+					result "$partition:$kernbootpart::$kernbasefile:$initrd:$kernelparams"
 					exitcode=0
 					foundinitrd=1
 				fi
 			done
 			if [ "$foundinitrd" = 0 ]; then
-				result "$partition:$kernbootpart::$kernbasefile::root=$mappedpartition"
+				result "$partition:$kernbootpart::$kernbasefile::$kernelparams"
 				exitcode=0
 			fi
 		fi
