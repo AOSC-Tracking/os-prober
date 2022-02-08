@@ -12,10 +12,13 @@ found_item=0
 entry_result () {
 	if [ "$ignore_item" = 0 ] && \
 	   [ -n "$kernel" ] && \
+	   # try to skip non-Linux images using the 16-bit boot protocol such as memtest86
+	   [ "$protocol" != "linux16" -o -n "$initrd" -o -n "${kernel%%*memtest*}" ] && \
 	   [ -e "$mpoint/$kernel" ]; then
 		result "$rootpart:$bootpart:$title:$kernel:$initrd:$parameters"
 		found_item=1
 	fi
+	protocol=""
 	kernel=""
 	parameters=""
 	initrd=""
@@ -28,6 +31,14 @@ parse_grub_menu () {
 	rootpart="$2"
 	bootpart="$3"
 	
+	# Systems with a separate /boot will not have
+	# the path to the kernel and initrd in grub.cfg.
+	bootpath=""
+	if [ "$rootpart" != "$bootpart" ]; then
+		bootpath="/boot"
+	fi
+
+	protocol=""
 	kernel=""
 	parameters=""
 	initrd=""
@@ -46,7 +57,7 @@ parse_grub_menu () {
 				# The double-quoted string is the title.
 				# Make sure to look at the text of the line
 				# before 'set' mangled it.
-				title="$(echo "$line" | sed -n 's/[^"]*"\(.*\)".*/\1/p' | sed 's/://g')"
+				title="$(echo "$line" | sed -En 's/[^"]*"(.*)".*/\1/p' | sed 's/://g')"
 				if [ -z "$title" ]; then
 					# ... or single-quoted?  Be careful
 					# to handle constructions like
@@ -54,45 +65,40 @@ parse_grub_menu () {
 					# foo'bar, as in shell), and to
 					# handle multiple single-quoted
 					# strings on the same line.
-					title="$(echo "$line" | sed -n "s/[^']*'\(\([^']\|'\\\\''\)*\)'.*/\1/p" | sed "s/'\\\\''/'/; s/://g")"
+					title="$(echo "$line" | sed -En "s/[^']*'(([^']|'\\\\'')*)'.*/\1/p" | sed "s/'\\\\''/'/; s/://g")"
 				fi
 				if [ -z "$title" ]; then
 					ignore_item=1
-				elif echo "$title" | grep -q '(on /dev/[^)]*)$'; then
+				elif echo "$title" | grep -q '(\([^(]* \)\?/dev/[^)]*)$'; then
 					log "Skipping entry '$title':"
-					log "appears to be an automatic reference taken from another menu.lst"
+					log "appears to be an automatic reference taken from another system"
 					ignore_item=1
 				fi
 			;;
-			linux)
+			linux|linux16|linuxefi)
 				# Hack alert: sed off any (hdn,n) but
 				# assume the kernel is on the same
 				# partition.
-				kernel="$(echo "$2" | sed 's/(.*)//')"
+				protocol="$1"
+				kernel="$bootpath$(echo "$2" | sed 's/(.*)//')"
+				initrd=""
 				shift 2
 				parameters="$@"
-				# Systems with a separate /boot will not have
-				# the path to the kernel in grub.cfg.
-				if [ "$partition" != "$bootpart" ]; then
-					kernel="/boot$kernel"
-				fi
 			;;
-			initrd)
-				shift
-				initrd=""
-				for initrd_path in "$@"; do
-					# sed hack, as above
-					initrd_path="$(echo "$initrd_path" | sed 's/(.*)//')"
-					# Initrd same.
-					if [ "$partition" != "$bootpart" ]; then
-						initrd_path="/boot$initrd_path"
-					fi
-					if [ -z "$initrd" ]; then
-						initrd="$initrd_path"
-					else
-						initrd="$initrd $initrd_path"
-					fi
-				done
+			initrd|initrd16|initrdefi)
+				if [ "${protocol#linux}" = "${1#initrd}" ]; then
+					shift
+					initrd=""
+					for initrd_path in "$@"; do
+						# sed hack, as above
+						initrd_path="$bootpath$(echo "$initrd_path" | sed 's/(.*)//')"
+						if [ -z "$initrd" ]; then
+							initrd="$initrd_path"
+						else
+							initrd="$initrd $initrd_path"
+						fi
+					done
+				fi
 			;;
 			"}")
 				entry_result
