@@ -1,3 +1,11 @@
+os-prober (1.82) UNRELEASED; urgency=medium
+
+  * Replace newns by unshare --mount from util-linux [essential]. This makes
+    os-prober run in a private mount namespace, as it was initially intended.
+    (Closes: #1034485)
+
+ -- Olivier Gayot <olivier.gayot@sigexec.com>  Sun, 16 Apr 2023 17:08:57 +0200
+
 os-prober (1.81) unstable; urgency=medium
 
   * Team upload

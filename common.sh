@@ -1,5 +1,15 @@
 newns () {
-  [ "$OS_PROBER_NEWNS" ] || exec /usr/lib/os-prober/newns "$0" "$@"
+  if [ "$OS_PROBER_NEWNS" ]; then
+      return
+  fi
+  export OS_PROBER_NEWNS=1
+  # This is best-effort; if for some reason, unshare --mount is not available,
+  # don't worry about it.
+  if /usr/bin/unshare --mount -- /bin/true; then
+      exec /usr/bin/unshare --mount -- "$0" "$@"
+  else
+      exec "$0" "$@"
+  fi
 }
 
 cleanup_tmpdir=false

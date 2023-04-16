@@ -24,11 +24,9 @@ export DEB_CFLAGS_MAINT_APPEND := -Os -Wall
 CFLAGS := $(shell dpkg-buildflags --get CPPFLAGS; dpkg-buildflags --get CFLAGS)
 LDFLAGS := $(shell dpkg-buildflags --get LDFLAGS)
 
-override_dh_auto_build:
-	$(MAKE) CC=$(CC) CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
-
 override_dh_install:
 	dh_install
+	mkdir --parents usr/lib/os-probes/mounted
 	for probes in os-probes os-probes/mounted os-probes/init \
 	              linux-boot-probes linux-boot-probes/mounted; do \
 		dh_install $$probes/common/* usr/lib/$$probes; \
@@ -39,4 +37,3 @@ override_dh_install:
 ifeq ($(ARCH),x86)
 	dh_install os-probes/mounted/powerpc/20macosx usr/lib/os-probes/mounted
 endif
-	cp -a debian/os-prober-udeb/usr/lib debian/os-prober/usr/
