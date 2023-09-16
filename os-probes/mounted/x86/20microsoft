@@ -40,7 +40,8 @@ if item_in_dir -q bootmgr "$2"; then
 			found=true
 			short=Windows
 
-			for v in 12 11 10 8 7 Vista "Server 2008 R2" "Server 2008" "Recovery Environment" "Setup"; do
+			for v in 12 11 10 8 7 Vista "Server 2022" "Server 2019" "Server 2016" "Server 2012 R2" \
+			         "Server 2012" "Server 2008 R2" "Server 2008" "Recovery Environment" Setup; do
 				win_v="Windows $v"
 				if grep -aqs "$(dotify "$win_v")" "$2/$boot/$bcd"; then
 					long="$win_v"
